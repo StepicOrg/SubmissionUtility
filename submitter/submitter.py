@@ -68,9 +68,22 @@ def set_problem(problem_url):
         pass
 
 
+def evaluate(attempt_id):
+    print("Evaluating\n", end="")
+    while True:
+        url = stepic_url + "/submissions/{}".format(attempt_id)
+        result = requests.get(url, headers=headers)
+        result = json.loads(result.text)
+        status = result['submissions'][0]['status']
+        if status != 'evaluation':
+            break
+        print("..", end="", flush=True)
+    print()
+    print("You solution is {}".format(status))
+
+
 def submit_code(code):
     code = "".join(open(code).readlines())
-    print(code)
     url = stepic_url + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     attemp_id = None
@@ -100,6 +113,7 @@ def submit_code(code):
     }
     submit = requests.post(url, json.dumps(submission), headers=headers)
     submit = json.loads(submit.text)
+    evaluate(submit['submissions'][0]['id'])
 
 
 parser = argparse.ArgumentParser()
