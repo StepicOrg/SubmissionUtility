@@ -14,6 +14,10 @@ token = (resp.json())['access_token']
 stepic_url = "https://stepic.org/api"
 headers = {'Authorization': 'Bearer ' + token, "content-type": "application/json"}
 
+programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
+                        'java': 'java8', 'hs': 'haskel 7.10', 'sh': 'shell',
+                        'r': 'r'}
+
 
 def exit_util(message):
     print(message, file=sys.stderr)
@@ -95,6 +99,7 @@ def evaluate(attempt_id):
 
 
 def submit_code(code):
+    file_name = code
     code = "".join(open(code).readlines())
     url = stepic_url + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
@@ -103,13 +108,16 @@ def submit_code(code):
         attemp_id = file.readline()
     if attemp_id is None:
         exit_util("Plz, set the problem link!")
+    language = programming_language.get(file_name.split('.')[-1])
+    if language is None:
+        exit_util("Doesn't correct extension for programme.")
     submission = {"submission":
                     {
                         "time": current_time,
                         "reply":
                             {
                                 "code": code,
-                                "language": "c++11"
+                                "language": language
                             },
                         "attempt": attemp_id
                     }
