@@ -4,82 +4,94 @@ import requests
 import sys
 import time
 
-client_id = "gGgXy4iks8VFjks691bcaCPBAizvpabUSioLrlJY"
-client_secret = "nZvZshi9cas8sNld86Nk5ZbAHTkWwZ8OErsdfh2UA77pZ2DfeXtSklbCLtMDGop7Q6pWXCE7cEzTb9YBCoqJVqd7XiiNqPpbf3RUSlqmaols0IdvwlWSiiHtBTYozc9m"
+client_id = "client_id"
+client_secret = "client_secret"
+
 
 auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
 resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
-token = json.loads(resp.text)['access_token']
+token = (resp.json())['access_token']
 stepic_url = "https://stepic.org/api"
 headers = {'Authorization': 'Bearer ' + token, "content-type": "application/json"}
+
+
+def exit_util(message):
+    print(message, file=sys.stderr)
+    sys.exit(0)
+
+
+def get_lesson_id(url_parts):
+    len_url_parts = len(url_parts)
+    for i, part in enumerate(url_parts):
+        if part == "lesson" and i + 1 < len_url_parts:
+            return int(url_parts[i + 1].split("-")[-1])
+
+
+def get_step_id(url_parts):
+    len_url_parts = len(url_parts)
+    for i, part in enumerate(url_parts):
+        if part == "step" and i + 1 < len_url_parts:
+            step_id = 0
+            for x in url_parts[i + 1]:
+                val = ord(x) - ord('0')
+                if 0 <= val <= 9:
+                    step_id = step_id * 10 + val
+                else:
+                    return step_id
+    return 0
 
 
 def set_problem(problem_url):
     tmp = requests.get(problem_url)
     code = tmp.status_code
     if code >= 500:
-        raise Exception("Can't connect to {}".format(problem_url))
+        exit_util("Can't connect to {}".format(problem_url))
     if code >= 400:
-        raise Exception("Oops some problems with your link {}"/format(problem_url))
-    sys.stderr.write("Seting connecton to the page\n")
-    tmp = None
+        exit_util("Oops some problems with your link {}".format(problem_url))
+    print("\nSeting connecton to the page\n", file=sys.stderr)
+
+    url_parts = problem_url.split("/")
+
+    lesson_id = get_lesson_id(url_parts)
+    step_id = get_step_id(url_parts)
+
+    if lesson_id is None or not step_id:
+        exit_util("Doesn't correct link.")
+
+    url = stepic_url + "/lessons/{}".format(lesson_id)
+    lesson_information = requests.get(url, headers=headers)
+    lesson_information = lesson_information.json()
     try:
-        tmp = problem_url.split("/")
-        tmp = tmp[-1]
-    except Exception as e:
-        raise Exception("Doesn't a correct stepic address.") from e
-    unit = None
-    position = None
-    try:
-        [position, unit] = tmp.split("?unit=")
-        position = int(position) - 1
-        assert position >= 0
-    except Exception as e:
-        raise Exception("Last slash doesn't math %d?unit=%d patern") from e
-    url = stepic_url + "/units/{}".format(unit)
-    get_units = requests.get(url, headers=headers)
-    get_units = json.loads(get_units.text)
-    assignment = None
-    try:
-        assignment = get_units['units'][0]['assignments'][position]
-    except Exception as e:
-        raise Exception("Check your link")
-    try:
-        url = stepic_url + "/assignments/{}".format(assignment)
-        get_assignment = requests.get(url, headers=headers)
-        get_assignment = json.loads(get_assignment.text)
-        step_id = get_assignment['assignments'][0]['step']
+        step_id = lesson_information['lessons'][0]['steps'][step_id - 1]
         attempt = {"attempt": {
-                               "time": None,
-                               "dataset_url": None,
-                               "status": None,
-                               "time_left": None,
-                               "step": str(step_id),
-                               "user": None
+                               "step": str(step_id)
                             }
                    }
         url = stepic_url + "/attempts"
         attempt = requests.post(url, json.dumps(attempt), headers=headers)
-        attempt = json.loads(attempt.text)
+        attempt = attempt.json()
         attempt_id = attempt['attempts'][0]['id']
         with open("attempt_id", "w") as file:
             file.write(str(attempt_id))
     except Exception as e:
-        pass
+        exit_util("Something went wrong =(")
 
 
 def evaluate(attempt_id):
-    print("Evaluating\n", end="")
+    print("Evaluating", file=sys.stderr)
+    time_out = 0.1
     while True:
         url = stepic_url + "/submissions/{}".format(attempt_id)
         result = requests.get(url, headers=headers)
-        result = json.loads(result.text)
+        result = result.json()
         status = result['submissions'][0]['status']
         if status != 'evaluation':
             break
-        print("..", end="", flush=True)
-    print()
-    print("You solution is {}".format(status))
+        print("..", end="", flush=True, file=sys.stderr)
+        time.sleep(time_out)
+        time_out += time_out
+    print(file=sys.stderr)
+    print("You solution is {}".format(status), file=sys.stderr)
 
 
 def submit_code(code):
@@ -90,29 +102,20 @@ def submit_code(code):
     with open("attempt_id") as file:
         attemp_id = file.readline()
     if attemp_id is None:
-        raise Exception("Plz, set the problim link!")
+        exit_util("Plz, set the problem link!")
     submission = {"submission":
                     {
-                        "status": None,
-                        "score": None,
-                        "hint": None,
                         "time": current_time,
                         "reply":
                             {
                                 "code": code,
                                 "language": "c++11"
                             },
-                        "reply_url": None,
-                        "attempt_id": None,
-                        "has_attempt": False,
-                        "session_id": None,
-                        "has_session": False,
-                        "attempt": attemp_id,
-                        "session": None
+                        "attempt": attemp_id
                     }
     }
     submit = requests.post(url, json.dumps(submission), headers=headers)
-    submit = json.loads(submit.text)
+    submit = submit.json()
     evaluate(submit['submissions'][0]['id'])
 
 
