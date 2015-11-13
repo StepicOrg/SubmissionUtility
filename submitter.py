@@ -8,8 +8,8 @@ import time
 client_id = "client_id"
 client_secret = "client_secret"
 stepic_url = "https://stepic.org/api"
-client_file = "client_file"
-attempt_file = "attempt_file"
+client_file = ".submitter/client_file"
+attempt_file = ".submitter/attempt_file"
 token = None
 headers = None
 file_manager = None
