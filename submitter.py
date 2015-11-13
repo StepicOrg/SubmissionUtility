@@ -1,10 +1,9 @@
 import click
 import json
-import requests
 import os
+import requests
 import sys
 import time
-import colorama
 
 client_id = "client_id"
 client_secret = "client_secret"
@@ -150,10 +149,10 @@ def evaluate(attempt_id):
         status = result['submissions'][0]['status']
         if status != 'evaluation':
             break
-        print("..", end="", flush=True, file=sys.stderr)
+        click.echo("..", nl=False)
         time.sleep(time_out)
         time_out += time_out
-    print(file=sys.stderr)
+    click.echo("")
     click.secho("You solution is {}".format(status), fg=['red', 'green'][status == 'correct'])
 
 
@@ -163,7 +162,6 @@ def submit_code(code):
     code = "".join(open(code).readlines())
     url = stepic_url + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-    attempt_id = None
     file = file_manager.read_file(attempt_file)
     attempt_id = next(file)
     if attempt_id is None:
