@@ -1,14 +1,17 @@
 import click
 import json
 import requests
+import os
 import sys
 import time
 
 client_id = "client_id"
 client_secret = "client_secret"
 stepic_url = "https://stepic.org/api"
+client_file = os.environ['HOME'] + "/.submitter/client_file"
 token = None
 headers = None
+
 
 def exit_util(message):
     print(message, file=sys.stderr)
@@ -20,7 +23,7 @@ def update_client():
     global client_secret
     global token
     global headers
-    with open("client_inf", "r") as f:
+    with open(client_file, "r") as f:
         client_id = f.readline()
         client_id = client_id.split(":")[-1].rstrip()
         client_secret = f.readline()
@@ -39,30 +42,18 @@ programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
                         
                         
 def set_client(cid, secret):
-    lines = []
-    with open("client_inf", "r") as f:
+    with open(client_file, "r") as f:
         lines = [line.split(":")[-1].rstrip() for line in f]
-    with open("client_inf", "w") as f:
-        f.writelines("clientd_id:{}\n".format(cid or lines[0]))
+    with open(client_file, "w") as f:
+        f.writelines("client_id:{}\n".format(cid or lines[0]))
         f.writelines("client_secret:{}\n".format(secret or lines[1]))
+
         
-
-#def set_secret(csecret):
- #   lines = []
-  #  with open("client_inf", "r") as f:
-   #     lines = [line for line in f.readlines()]
-    #print(lines)
-#    with open("clinet_inf", "w") as f:
-#        f.writelines(lines[0] + "\n")
- #       f.writelines("client_secret:{0  }\n".format(csecret))
-
-
 def get_lesson_id(url_parts):
     len_url_parts = len(url_parts)
     for i, part in enumerate(url_parts):
         if part == "lesson" and i + 1 < len_url_parts:
             return int(url_parts[i + 1].split("-")[-1])
-                            
 
 
 def get_step_id(url_parts):
@@ -139,10 +130,10 @@ def submit_code(code):
     code = "".join(open(code).readlines())
     url = stepic_url + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-    attemp_id = None
+    attempt_id = None
     with open("attempt_id") as file:
-        attemp_id = file.readline()
-    if attemp_id is None:
+        attempt_id = file.readline()
+    if attempt_id is None:
         exit_util("Plz, set the problem link!")
     language = programming_language.get(file_name.split('.')[-1])
     if language is None:
@@ -155,7 +146,7 @@ def submit_code(code):
                                 "code": code,
                                 "language": language
                             },
-                        "attempt": attemp_id
+                        "attempt": attempt_id
                     }
     }
     submit = requests.post(url, json.dumps(submission), headers=headers)
@@ -163,23 +154,27 @@ def submit_code(code):
     evaluate(submit['submissions'][0]['id'])
 
 
-
-@click.group()  
+@click.group()
 @click.version_option()
 def main():
     """Submitter 1.0
        
        Tools for submitting solutions to stepic.org
-    """    
+    """
+    try:
+        os.mkdir(os.environ['HOME'] + "/.submitter")
+    except Exception:
+        pass
+    print("HERE")
     lines = 0
     try:
-        with open("client_inf", "r") as f:
-            for x in f:
+        with open(client_file, "r") as f:
+            for _ in f:
                 lines += 1
     except Exception as e:
         pass
     if lines < 2:
-        with open("client_inf", "w") as f:
+        with open(client_file, "w") as f:
             f.writelines("client_id:\n")
             f.writelines("client_secret:\n")    
 
