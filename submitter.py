@@ -251,7 +251,6 @@ def submit(s=None):
 def client(cid=None):
     """
     Change or set your client id
-    :param cid: client id
     """
     if not (cid is None):
         set_client(cid, None)
@@ -265,7 +264,6 @@ def client(cid=None):
 def secret(ctx, cs):
     """
     Change or set your client_secret
-    :param cs: client secret
     """
     if not (cs is None):
         set_client(None, cs)
