@@ -8,13 +8,46 @@ import time
 client_id = "client_id"
 client_secret = "client_secret"
 stepic_url = "https://stepic.org/api"
-client_file = os.environ['HOME'] + "/.submitter/client_file"
+client_file = "client_file"
+attempt_file = "attempt_file"
 token = None
 headers = None
+file_manager = None
+
+
+class FileManager:
+    """Local file manager"""
+
+    def __init__(self):
+        self.home = os.path.expanduser("~")
+        self.divide_symbol = "/"
+        from platform import system
+        if system() == "Windows":
+            self.divide_symbol = "\\"
+
+    def create_dir(self, dir_name):
+        dir_name = self.get_name(dir_name)
+        try:
+            os.mkdir(dir_name)
+        except FileExistsError as e:
+            return
+
+    def get_name(self, filename):
+        return self.home + self.divide_symbol + filename
+
+    def read_file(self, filename):
+        filename = self.get_name(filename)
+        with open(filename, "r") as file:
+            return file
+
+    def write_to_file(self, filename, content):
+        filename = self.get_name(filename)
+        with open(filename, "w") as file:
+            file.writelines(content)
 
 
 def exit_util(message):
-    print(message, file=sys.stderr)
+    click.echo(message)
     sys.exit(0)
 
 
@@ -23,15 +56,15 @@ def update_client():
     global client_secret
     global token
     global headers
-    with open(client_file, "r") as f:
-        client_id = f.readline()
-        client_id = client_id.split(":")[-1].rstrip()
-        client_secret = f.readline()
-        client_secret = client_secret.split(":")[-1].rstrip()  
+    f = file_manager.read_file(client_file)
+    client_id = f.readline()
+    client_id = client_id.split(":")[-1].rstrip()
+    client_secret = f.readline()
+    client_secret = client_secret.split(":")[-1].rstrip()
     auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
     resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
     if resp.status_code > 400:
-        exit_util("Lost connection")    
+        exit_util("Wrong Client id or Client secret.\n Or check your internet connection.")
     token = (resp.json())['access_token']
     headers = {'Authorization': 'Bearer ' + token, "content-type": "application/json"}
 
@@ -42,11 +75,9 @@ programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
                         
                         
 def set_client(cid, secret):
-    with open(client_file, "r") as f:
-        lines = [line.split(":")[-1].rstrip() for line in f]
-    with open(client_file, "w") as f:
-        f.writelines("client_id:{}\n".format(cid or lines[0]))
-        f.writelines("client_secret:{}\n".format(secret or lines[1]))
+    lines = [line.split(":")[-1].rstrip() for line in file_manager.read_file(client_file)]
+    to_write = "client_id:{}\nclient_secret:{}\n".format(cid or lines[0], secret or lines[1])
+    file_manager.write_to_file(client_file, to_write)
 
         
 def get_lesson_id(url_parts):
@@ -101,8 +132,7 @@ def set_problem(problem_url):
         attempt = requests.post(url, json.dumps(attempt), headers=headers)
         attempt = attempt.json()
         attempt_id = attempt['attempts'][0]['id']
-        with open("attempt_id", "w") as file:
-            file.write(str(attempt_id))
+        file_manager.write_to_file(attempt_file, str(attempt_id))
     except Exception as e:
         exit_util("Something went wrong =(")
 
@@ -131,8 +161,8 @@ def submit_code(code):
     url = stepic_url + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     attempt_id = None
-    with open("attempt_id") as file:
-        attempt_id = file.readline()
+    file = file_manager.read_file(attempt_file)
+    attempt_id = file.readline()
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
     language = programming_language.get(file_name.split('.')[-1])
@@ -161,57 +191,69 @@ def main():
        
        Tools for submitting solutions to stepic.org
     """
+    global file_manager
+    file_manager = FileManager()
     try:
-        os.mkdir(os.environ['HOME'] + "/.submitter")
+        file_manager.create_dir(".submitter")
     except Exception:
-        pass
-    print("HERE")
+        click.echo("Can't do anything. Not enough rights to edit folders.")
+        exit(0)
     lines = 0
-    try:
-        with open(client_file, "r") as f:
-            for _ in f:
-                lines += 1
-    except Exception as e:
-        pass
+    for _ in file_manager.read_file(client_file):
+        lines += 1
     if lines < 2:
-        with open(client_file, "w") as f:
-            f.writelines("client_id:\n")
-            f.writelines("client_secret:\n")    
-
+        file_manager.write_to_file(client_file, "client_id:\nclient_secret:\n")
 
 
 @main.command()
-@click.option("--link", help="Link to your problem")
-def remember_problem(link=None):
+def init():
+    click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
+    try:
+        click.echo("Enter your Client id:")
+        new_client_id = input()
+        click.echo("Enter your Client secret:")
+        new_client_secret = input()
+        set_client(new_client_id, new_client_secret)
+        update_client()
+    except Exception:
+        exit_util("Enter right Client id and Client secret")
+
+
+@main.command()
+@click.option("--p", help="Link to your problem")
+def problem(p=None):
     """     Rember and Set the current problem.
 
     """
-    if not link is None:
-        set_problem(link)
+    if not (p is None):
+        set_problem(p)
 
 
 @main.command()
-@click.option("--solution", help="Path to your solution")
-def submit_action(solution=None):
+@click.option("--s", help="Path to your solution")
+def submit(s=None):
     """ Submit a solution.
 
     """
-    if not solution is None:
-        submit_code(solution)
+    if not (s is None):
+        submit_code(s)
+
 
 @main.command()
-@click.option("--cid", help="Your client-id. If you don't have it, please create on https://stepic.org/oauth2/applications/")
-def set_client_id(cid=None):
-    if not cid is None:
+@click.option("--cid", help="Your client-id. If you don't have it," +
+                            "please create on https://stepic.org/oauth2/applications/")
+def client(cid=None):
+    if not (cid is None):
         set_client(cid, None)
     click.echo("Client id has been changed!")
         
 
 @main.command()
-@click.option("--csecret", help="Your client-secret. If you don't vae it, please create on https://stepic.org/oauth2/applications/")
+@click.option("--cs", help="Your client-secret. If you don't vae it," +
+                           " please create on https://stepic.org/oauth2/applications/")
 @click.pass_context
-def set_secret(ctx, csecret):
-    if not csecret is None:
-        set_client(None, csecret)    
+def secret(ctx, cs):
+    if not (cs is None):
+        set_client(None, cs)
     click.echo("Client secret has been changed!")
 
