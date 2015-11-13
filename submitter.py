@@ -111,7 +111,7 @@ def set_problem(problem_url):
         exit_util("Can't connect to {}".format(problem_url))
     if code >= 400:
         exit_util("Oops some problems with your link {}".format(problem_url))
-    print("\nSeting connecton to the page\n", file=sys.stderr)
+    click.secho("\nSetting connection to the page..", bold=True)
 
     url_parts = problem_url.split("/")
 
@@ -137,6 +137,7 @@ def set_problem(problem_url):
         file_manager.write_to_file(attempt_file, str(attempt_id))
     except Exception as e:
         exit_util("Something went wrong =(")
+    click.secho("Connecting completed!", fg="green")
 
 
 def evaluate(attempt_id):
@@ -153,7 +154,7 @@ def evaluate(attempt_id):
         time.sleep(time_out)
         time_out += time_out
     print(file=sys.stderr)
-    click.echo("You solution is {}".format(status), fg=['red', 'green'][status == 'correct'])
+    click.secho("You solution is {}".format(status), fg=['red', 'green'][status == 'correct'])
 
 
 def submit_code(code):
@@ -198,8 +199,7 @@ def main():
     try:
         file_manager.create_dir(".submitter")
     except Exception:
-        click.echo("Can't do anything. Not enough rights to edit folders.")
-        exit(0)
+        exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
     for _ in file_manager.read_file(client_file):
         lines += 1
@@ -211,14 +211,15 @@ def main():
 def init():
     click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
     try:
-        click.echo("Enter your Client id:")
+        click.secho("Enter your Client id:", bold=True)
         new_client_id = input()
-        click.echo("Enter your Client secret:")
+        click.secho("Enter your Client secret:", bold=True)
         new_client_secret = input()
         set_client(new_client_id, new_client_secret)
         update_client()
     except Exception:
         exit_util("Enter right Client id and Client secret")
+    click.secho("Submitter was inited successfully!", fg="green")
 
 
 @main.command()
