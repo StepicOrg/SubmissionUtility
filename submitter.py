@@ -38,7 +38,8 @@ class FileManager:
     def read_file(self, filename):
         filename = self.get_name(filename)
         with open(filename, "r") as file:
-            return file
+            for line in file:
+                yield line
 
     def write_to_file(self, filename, content):
         filename = self.get_name(filename)
@@ -57,9 +58,9 @@ def update_client():
     global token
     global headers
     f = file_manager.read_file(client_file)
-    client_id = f.readline()
+    client_id = next(f)
     client_id = client_id.split(":")[-1].rstrip()
-    client_secret = f.readline()
+    client_secret = next(f)
     client_secret = client_secret.split(":")[-1].rstrip()
     auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
     resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
@@ -162,7 +163,7 @@ def submit_code(code):
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     attempt_id = None
     file = file_manager.read_file(attempt_file)
-    attempt_id = file.readline()
+    attempt_id = next(file)
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
     language = programming_language.get(file_name.split('.')[-1])
