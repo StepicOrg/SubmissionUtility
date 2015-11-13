@@ -4,6 +4,7 @@ import requests
 import os
 import sys
 import time
+import colorama
 
 client_id = "client_id"
 client_secret = "client_secret"
@@ -48,7 +49,7 @@ class FileManager:
 
 
 def exit_util(message):
-    click.echo(message)
+    click.secho(message, fg="red")
     sys.exit(0)
 
 
@@ -139,7 +140,7 @@ def set_problem(problem_url):
 
 
 def evaluate(attempt_id):
-    print("Evaluating", file=sys.stderr)
+    click.secho("Evaluating", bold=True, fg='white')
     time_out = 0.1
     while True:
         url = stepic_url + "/submissions/{}".format(attempt_id)
@@ -152,7 +153,7 @@ def evaluate(attempt_id):
         time.sleep(time_out)
         time_out += time_out
     print(file=sys.stderr)
-    print("You solution is {}".format(status), file=sys.stderr)
+    click.echo("You solution is {}".format(status), fg=['red', 'green'][status == 'correct'])
 
 
 def submit_code(code):
@@ -210,9 +211,9 @@ def main():
 def init():
     click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
     try:
-        click.echo("Enter your Client id:")
+        click.echo("Enter your Client id:", nl=False)
         new_client_id = input()
-        click.echo("Enter your Client secret:")
+        click.echo("Enter your Client secret:", fl=False)
         new_client_secret = input()
         set_client(new_client_id, new_client_secret)
         update_client()
@@ -246,7 +247,7 @@ def submit(s=None):
 def client(cid=None):
     if not (cid is None):
         set_client(cid, None)
-    click.echo("Client id has been changed!")
+    click.secho("Client id has been changed!", fg="green")
         
 
 @main.command()
@@ -256,5 +257,5 @@ def client(cid=None):
 def secret(ctx, cs):
     if not (cs is None):
         set_client(None, cs)
-    click.echo("Client secret has been changed!")
+    click.secho("Client secret has been changed!", fg="green")
 
