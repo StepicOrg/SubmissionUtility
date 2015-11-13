@@ -211,9 +211,9 @@ def main():
 def init():
     click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
     try:
-        click.echo("Enter your Client id:", nl=False)
+        click.echo("Enter your Client id:")
         new_client_id = input()
-        click.echo("Enter your Client secret:", fl=False)
+        click.echo("Enter your Client secret:")
         new_client_secret = input()
         set_client(new_client_id, new_client_secret)
         update_client()
