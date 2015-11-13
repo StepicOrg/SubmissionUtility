@@ -190,9 +190,9 @@ def submit_code(code):
 @click.group()
 @click.version_option()
 def main():
-    """Submitter 1.0
-       
-       Tools for submitting solutions to stepic.org
+    """
+    Submitter 1.0
+    Tools for submitting solutions to stepic.org
     """
     global file_manager
     file_manager = FileManager()
@@ -209,6 +209,9 @@ def main():
 
 @main.command()
 def init():
+    """
+    Initializes utility: entering client_id and client_secret
+    """
     click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
     try:
         click.secho("Enter your Client id:", bold=True)
@@ -225,8 +228,8 @@ def init():
 @main.command()
 @click.option("--p", help="Link to your problem")
 def problem(p=None):
-    """     Rember and Set the current problem.
-
+    """
+    Setting new problem as current target.
     """
     if not (p is None):
         set_problem(p)
@@ -235,8 +238,8 @@ def problem(p=None):
 @main.command()
 @click.option("--s", help="Path to your solution")
 def submit(s=None):
-    """ Submit a solution.
-
+    """
+    Submit a solution to stepic system.
     """
     if not (s is None):
         submit_code(s)
@@ -246,6 +249,10 @@ def submit(s=None):
 @click.option("--cid", help="Your client-id. If you don't have it," +
                             "please create on https://stepic.org/oauth2/applications/")
 def client(cid=None):
+    """
+    Change or set your client id
+    :param cid: client id
+    """
     if not (cid is None):
         set_client(cid, None)
     click.secho("Client id has been changed!", fg="green")
@@ -256,6 +263,10 @@ def client(cid=None):
                            " please create on https://stepic.org/oauth2/applications/")
 @click.pass_context
 def secret(ctx, cs):
+    """
+    Change or set your client_secret
+    :param cs: client secret
+    """
     if not (cs is None):
         set_client(None, cs)
     click.secho("Client secret has been changed!", fg="green")
