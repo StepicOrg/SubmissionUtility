@@ -24,6 +24,8 @@ class FileManager:
         from platform import system
         if system() == "Windows":
             self.divide_symbol = "\\"
+        click.echo(self.home)
+        click.echo(self.divide_symbol)
 
     def create_dir(self, dir_name):
         dir_name = self.get_name(dir_name)
