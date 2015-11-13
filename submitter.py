@@ -38,6 +38,7 @@ class FileManager:
         self.symbol.join(name.split('/'))
 
     def get_name(self, filename):
+        click.echo(self.home + self.divide_symbol + self.change(filename))
         return self.home + self.divide_symbol + self.change(filename)
 
     def read_file(self, filename):
