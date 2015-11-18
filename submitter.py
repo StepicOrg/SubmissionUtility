@@ -1,18 +1,36 @@
 import click
 import json
 import os
+import re
 import requests
 import sys
 import time
 
-client_id = "client_id"
-client_secret = "client_secret"
 STEPIC_URL = "https://stepic.org/api"
 CLIENT_FILE = ".submitter/client_file"
 ATTEMPT_FILE = ".submitter/attempt_file"
 token = None
 headers = None
 file_manager = None
+client = None
+
+
+class Client:
+    def __init__(self):
+        self.id = "client_id"
+        self.secret = "secret"
+
+    def set_id(self, client_id):
+        self.id = client_id
+
+    def set_secret(self, client_secret):
+        self.secret = client_secret
+
+    def get_id(self):
+        return self.id
+
+    def get_secret(self):
+        return self.secret
 
 
 class FileManager:
@@ -56,16 +74,17 @@ def exit_util(message):
 
 
 def update_client():
-    global client_id
-    global client_secret
     global token
     global headers
+    global client
     f = file_manager.read_file(CLIENT_FILE)
     client_id = next(f)
     client_id = client_id.split(":")[-1].rstrip()
+    client.set_id(client_id)
     client_secret = next(f)
     client_secret = client_secret.split(":")[-1].rstrip()
-    auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
+    client.set_secret(client_secret)
+    auth = requests.auth.HTTPBasicAuth(client.get_id(), client.get_secret())
     resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
     if resp.status_code > 400:
         exit_util("Wrong Client id or Client secret.\n Or check your internet connection.")
@@ -84,41 +103,36 @@ def set_client(cid, secret):
     file_manager.write_to_file(CLIENT_FILE, to_write)
 
         
-def get_lesson_id(url_parts):
-    len_url_parts = len(url_parts)
-    for i, part in enumerate(url_parts):
-        if part == "lesson" and i + 1 < len_url_parts:
-            return int(url_parts[i + 1].split("-")[-1])
+def get_lesson_id(problem_url):
+    match = re.search(r'lesson/.*?-(\d+)/', problem_url)
+    if match is None:
+        return match
+    return match.group(1)
 
 
-def get_step_id(url_parts):
-    len_url_parts = len(url_parts)
-    for i, part in enumerate(url_parts):
-        if part == "step" and i + 1 < len_url_parts:
-            step_id = 0
-            for x in url_parts[i + 1]:
-                val = ord(x) - ord('0')
-                if 0 <= val <= 9:
-                    step_id = step_id * 10 + val
-                else:
-                    return step_id
-    return 0
+def get_step_id(problem_url):
+    match = re.search(r'step/(\d+)', problem_url)
+    if match is None:
+        return 0
+    return int(match.group(1))
 
 
 def set_problem(problem_url):
     update_client()
-    tmp = requests.get(problem_url)
-    code = tmp.status_code
+    request_inf = None
+    try:
+        request_inf = requests.get(problem_url)
+    except Exception as e:
+        exit_util("Doesn't correct link.")
+    code = request_inf.status_code
     if code >= 500:
         exit_util("Can't connect to {}".format(problem_url))
     if code >= 400:
         exit_util("Oops some problems with your link {}".format(problem_url))
     click.secho("\nSetting connection to the page..", bold=True)
 
-    url_parts = problem_url.split("/")
-
-    lesson_id = get_lesson_id(url_parts)
-    step_id = get_step_id(url_parts)
+    lesson_id = get_lesson_id(problem_url)
+    step_id = get_step_id(problem_url)
 
     if lesson_id is None or not step_id:
         exit_util("Doesn't correct link.")
@@ -192,20 +206,22 @@ def submit_code(code):
 @click.version_option()
 def main():
     """
-    Submitter 1.0
+    Submitter 0.2
     Tools for submitting solutions to stepic.org
     """
     global file_manager
+    global client
     file_manager = FileManager()
+    client = Client()
     try:
         file_manager.create_dir(".submitter")
-    except Exception:
+    except OSError:
         exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
     try:
         for _ in file_manager.read_file(CLIENT_FILE):
             lines += 1
-    except Exception as e:
+    except Exception:
         pass
     if lines < 2:
         file_manager.write_to_file(CLIENT_FILE, "client_id:\nclient_secret:\n")
@@ -230,46 +246,20 @@ def init():
 
 
 @main.command()
-@click.option("--p", help="Link to your problem")
+@click.option("-p", help="Link to your problem")
 def problem(p=None):
     """
     Setting new problem as current target.
     """
-    if not (p is None):
+    if p is not None:
         set_problem(p)
 
 
 @main.command()
-@click.option("--s", help="Path to your solution")
+@click.option("-s", help="Path to your solution")
 def submit(s=None):
     """
     Submit a solution to stepic system.
     """
-    if not (s is None):
+    if s is not None:
         submit_code(s)
-
-
-@main.command()
-@click.option("--cid", help="Your client-id. If you don't have it," +
-                            "please create on https://stepic.org/oauth2/applications/")
-def client(cid=None):
-    """
-    Change or set your client id
-    """
-    if not (cid is None):
-        set_client(cid, None)
-    click.secho("Client id has been changed!", fg="green")
-        
-
-@main.command()
-@click.option("--cs", help="Your client-secret. If you don't vae it," +
-                           " please create on https://stepic.org/oauth2/applications/")
-@click.pass_context
-def secret(ctx, cs):
-    """
-    Change or set your client_secret
-    """
-    if not (cs is None):
-        set_client(None, cs)
-    click.secho("Client secret has been changed!", fg="green")
-
