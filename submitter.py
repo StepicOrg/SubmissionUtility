@@ -38,7 +38,7 @@ class FileManager:
         self.symbol.join(name.split('/'))
 
     def get_name(self, filename):
-        return self.home + self.divide_symbol + self.divide_symbol.join(filename.split('/'))
+        return self.home + self.divide_symbol + self.change(filename)
 
     def read_file(self, filename):
         filename = self.get_name(filename)
