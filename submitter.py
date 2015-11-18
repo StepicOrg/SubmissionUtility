@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import click
 import json
 import os
@@ -273,3 +274,6 @@ def secret(ctx, cs):
         set_client(None, cs)
     click.secho("Client secret has been changed!", fg="green")
 
+
+if __name__ == '__main__':
+    main()
