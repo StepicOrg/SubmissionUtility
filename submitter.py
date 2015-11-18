@@ -62,6 +62,15 @@ class FileManager:
         with open(filename, "w") as file:
             file.writelines(content)
 
+    def write_json(self, filename, data):
+        filename = self.get_name(filename)
+        with open(filename, "w") as file:
+            json.dump(data, file)
+
+    def read_json(self, filename):
+        filename = self.get_name(filename)
+        return json.loads(open(filename).read())
+
 
 def exit_util(message):
     click.secho(message, fg="red")
@@ -72,13 +81,9 @@ def update_client():
     global token
     global headers
     global client
-    f = file_manager.read_file(CLIENT_FILE)
-    client_id = next(f)
-    client_id = client_id.split(":")[-1].rstrip()
-    client.set_id(client_id)
-    client_secret = next(f)
-    client_secret = client_secret.split(":")[-1].rstrip()
-    client.set_secret(client_secret)
+    data = file_manager.read_json(CLIENT_FILE)
+    client.set_id(data['client_id'])
+    client.set_secret(data['client_secret'])
     auth = requests.auth.HTTPBasicAuth(client.get_id(), client.get_secret())
     resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
     if resp.status_code > 400:
@@ -93,9 +98,12 @@ programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
                         
                         
 def set_client(cid, secret):
-    lines = [line.split(":")[-1].rstrip() for line in file_manager.read_file(CLIENT_FILE)]
-    to_write = "client_id:{}\nclient_secret:{}\n".format(cid or lines[0], secret or lines[1])
-    file_manager.write_to_file(CLIENT_FILE, to_write)
+    data = file_manager.read_json(CLIENT_FILE)
+    if cid:
+        data['client_id'] = cid
+    if secret:
+        data['client_secret'] = secret
+    file_manager.write_json(CLIENT_FILE, data)
 
         
 def get_lesson_id(problem_url):
@@ -171,7 +179,10 @@ def evaluate(attempt_id):
 def submit_code(code):
     update_client()
     file_name = code
-    code = "".join(open(code).readlines())
+    try:
+        code = "".join(open(code).readlines())
+    except FileNotFoundError:
+        exit_util("FIle {} not found".format(code))
     url = STEPIC_URL + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     file = file_manager.read_file(ATTEMPT_FILE)
@@ -214,12 +225,12 @@ def main():
         exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
     try:
-        for _ in file_manager.read_file(CLIENT_FILE):
-            lines += 1
+        data = file_manager.read_json(CLIENT_FILE)
+        lines += 1
     except Exception:
         pass
-    if lines < 2:
-        file_manager.write_to_file(CLIENT_FILE, "client_id:\nclient_secret:\n")
+    if lines < 1:
+        file_manager.write_json(CLIENT_FILE, {"client_id": "id", "client_secret": "secret"})
 
 
 @main.command()
