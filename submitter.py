@@ -24,8 +24,6 @@ class FileManager:
         from platform import system
         if system() == "Windows":
             self.divide_symbol = "\\"
-        click.echo(self.home)
-        click.echo(self.divide_symbol)
 
     def create_dir(self, dir_name):
         dir_name = self.get_name(dir_name)
@@ -34,11 +32,11 @@ class FileManager:
         except FileExistsError as e:
             return
         
-    def change(self, name):
-        self.symbol.join(name.split('/'))
+    def change_name(self, name):
+        return self.divide_symbol.join(name.split('/'))
 
     def get_name(self, filename):
-        return self.home + self.divide_symbol + self.change(filename)
+        return self.home + self.divide_symbol + self.change_name(filename)
 
     def read_file(self, filename):
         filename = self.get_name(filename)
@@ -204,8 +202,11 @@ def main():
     except Exception:
         exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
-    for _ in file_manager.read_file(client_file):
-        lines += 1
+    try:
+        for _ in file_manager.read_file(client_file):
+            lines += 1
+    except Exception as e:
+        pass
     if lines < 2:
         file_manager.write_to_file(client_file, "client_id:\nclient_secret:\n")
 
