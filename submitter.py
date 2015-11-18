@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import click
 import json
 import os
@@ -263,3 +264,32 @@ def submit(s=None):
     """
     if s is not None:
         submit_code(s)
+
+
+@main.command()
+@click.option("--cid", help="Your client-id. If you don't have it," +
+                            "please create on https://stepic.org/oauth2/applications/")
+def client(cid=None):
+    """
+    Change or set your client id
+    """
+    if not (cid is None):
+        set_client(cid, None)
+    click.secho("Client id has been changed!", fg="green")
+        
+
+@main.command()
+@click.option("--cs", help="Your client-secret. If you don't vae it," +
+                           " please create on https://stepic.org/oauth2/applications/")
+@click.pass_context
+def secret(ctx, cs):
+    """
+    Change or set your client_secret
+    """
+    if not (cs is None):
+        set_client(None, cs)
+    click.secho("Client secret has been changed!", fg="green")
+
+
+if __name__ == '__main__':
+    main()
