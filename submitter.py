@@ -8,8 +8,9 @@ import sys
 import time
 
 STEPIC_URL = "https://stepic.org/api"
-CLIENT_FILE = ".submitter/client_file"
-ATTEMPT_FILE = ".submitter/attempt_file"
+APP_FOLDER = ".stepic"
+CLIENT_FILE = APP_FOLDER + "/client_file"
+ATTEMPT_FILE = APP_FOLDER + "/attempt_file"
 token = None
 headers = None
 file_manager = None
@@ -39,10 +40,6 @@ class FileManager:
 
     def __init__(self):
         self.home = os.path.expanduser("~")
-        self.divide_symbol = "/"
-        from platform import system
-        if system() == "Windows":
-            self.divide_symbol = "\\"
 
     def create_dir(self, dir_name):
         dir_name = self.get_name(dir_name)
@@ -50,12 +47,9 @@ class FileManager:
             os.mkdir(dir_name)
         except FileExistsError as e:
             return
-        
-    def change_name(self, name):
-        return self.divide_symbol.join(name.split('/'))
 
     def get_name(self, filename):
-        return self.home + self.divide_symbol + self.change_name(filename)
+        return os.path.join(self.home, filename)
 
     def read_file(self, filename):
         filename = self.get_name(filename)
@@ -215,7 +209,7 @@ def main():
     file_manager = FileManager()
     client = Client()
     try:
-        file_manager.create_dir(".submitter")
+        file_manager.create_dir(APP_FOLDER)
     except OSError:
         exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
