@@ -105,7 +105,7 @@ def set_client(cid, secret):
 
         
 def get_lesson_id(problem_url):
-    match = re.search(r'lesson/.*?-(\d+)/', problem_url)
+    match = re.search(r'lesson/.*?(\d+)/', problem_url)
     if match is None:
         return match
     return match.group(1)
@@ -124,7 +124,7 @@ def set_problem(problem_url):
     try:
         request_inf = requests.get(problem_url)
     except Exception as e:
-        exit_util("Doesn't correct link.")
+        exit_util("The link is incorrect.")
     code = request_inf.status_code
     if code >= 500:
         exit_util("Can't connect to {}".format(problem_url))
@@ -136,7 +136,7 @@ def set_problem(problem_url):
     step_id = get_step_id(problem_url)
 
     if lesson_id is None or not step_id:
-        exit_util("Doesn't correct link.")
+        exit_util("The link is incorrect.")
 
     url = STEPIC_URL + "/lessons/{}".format(lesson_id)
     lesson_information = requests.get(url, headers=headers)
@@ -153,7 +153,7 @@ def set_problem(problem_url):
         attempt_id = attempt['attempts'][0]['id']
         file_manager.write_to_file(ATTEMPT_FILE, str(attempt_id))
     except Exception as e:
-        exit_util("Something went wrong =(")
+        exit_util("You do not have permission to perform this action, or something went wrong.")
     click.secho("Connecting completed!", fg="green")
 
 
@@ -234,6 +234,8 @@ def init():
     Initializes utility: entering client_id and client_secret
     """
     click.echo("Before using, create new Application on https://stepic.org/oauth2/applications/")
+    click.secho("Client type - Confidential, Authorization grant type - Client credentials.", fg="red", bold=True)
+
     try:
         click.secho("Enter your Client id:", bold=True)
         new_client_id = input()
@@ -264,32 +266,6 @@ def submit(s=None):
     """
     if s is not None:
         submit_code(s)
-
-
-@main.command()
-@click.option("--cid", help="Your client-id. If you don't have it," +
-                            "please create on https://stepic.org/oauth2/applications/")
-def client(cid=None):
-    """
-    Change or set your client id
-    """
-    if not (cid is None):
-        set_client(cid, None)
-    click.secho("Client id has been changed!", fg="green")
-        
-
-@main.command()
-@click.option("--cs", help="Your client-secret. If you don't vae it," +
-                           " please create on https://stepic.org/oauth2/applications/")
-@click.pass_context
-def secret(ctx, cs):
-    """
-    Change or set your client_secret
-    """
-    if not (cs is None):
-        set_client(None, cs)
-    click.secho("Client secret has been changed!", fg="green")
-
 
 if __name__ == '__main__':
     main()
