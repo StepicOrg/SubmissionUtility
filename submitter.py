@@ -24,6 +24,8 @@ class FileManager:
         from platform import system
         if system() == "Windows":
             self.divide_symbol = "\\"
+        click.echo(self.home)
+        click.echo(self.divide_symbol)
 
     def create_dir(self, dir_name):
         dir_name = self.get_name(dir_name)
@@ -31,6 +33,9 @@ class FileManager:
             os.mkdir(dir_name)
         except FileExistsError as e:
             return
+        
+    def change(self, name):
+        self.symbol.join(name.split('/'))
 
     def get_name(self, filename):
         return self.home + self.divide_symbol + self.divide_symbol.join(filename.split('/'))
