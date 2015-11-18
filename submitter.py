@@ -7,9 +7,9 @@ import time
 
 client_id = "client_id"
 client_secret = "client_secret"
-stepic_url = "https://stepic.org/api"
-client_file = ".submitter/client_file"
-attempt_file = ".submitter/attempt_file"
+STEPIC_URL = "https://stepic.org/api"
+CLIENT_FILE = ".submitter/client_file"
+ATTEMPT_FILE = ".submitter/attempt_file"
 token = None
 headers = None
 file_manager = None
@@ -60,7 +60,7 @@ def update_client():
     global client_secret
     global token
     global headers
-    f = file_manager.read_file(client_file)
+    f = file_manager.read_file(CLIENT_FILE)
     client_id = next(f)
     client_id = client_id.split(":")[-1].rstrip()
     client_secret = next(f)
@@ -79,9 +79,9 @@ programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
                         
                         
 def set_client(cid, secret):
-    lines = [line.split(":")[-1].rstrip() for line in file_manager.read_file(client_file)]
+    lines = [line.split(":")[-1].rstrip() for line in file_manager.read_file(CLIENT_FILE)]
     to_write = "client_id:{}\nclient_secret:{}\n".format(cid or lines[0], secret or lines[1])
-    file_manager.write_to_file(client_file, to_write)
+    file_manager.write_to_file(CLIENT_FILE, to_write)
 
         
 def get_lesson_id(url_parts):
@@ -123,7 +123,7 @@ def set_problem(problem_url):
     if lesson_id is None or not step_id:
         exit_util("Doesn't correct link.")
 
-    url = stepic_url + "/lessons/{}".format(lesson_id)
+    url = STEPIC_URL + "/lessons/{}".format(lesson_id)
     lesson_information = requests.get(url, headers=headers)
     lesson_information = lesson_information.json()
     try:
@@ -132,11 +132,11 @@ def set_problem(problem_url):
                                "step": str(step_id)
                             }
                    }
-        url = stepic_url + "/attempts"
+        url = STEPIC_URL + "/attempts"
         attempt = requests.post(url, json.dumps(attempt), headers=headers)
         attempt = attempt.json()
         attempt_id = attempt['attempts'][0]['id']
-        file_manager.write_to_file(attempt_file, str(attempt_id))
+        file_manager.write_to_file(ATTEMPT_FILE, str(attempt_id))
     except Exception as e:
         exit_util("Something went wrong =(")
     click.secho("Connecting completed!", fg="green")
@@ -146,7 +146,7 @@ def evaluate(attempt_id):
     click.secho("Evaluating", bold=True, fg='white')
     time_out = 0.1
     while True:
-        url = stepic_url + "/submissions/{}".format(attempt_id)
+        url = STEPIC_URL + "/submissions/{}".format(attempt_id)
         result = requests.get(url, headers=headers)
         result = result.json()
         status = result['submissions'][0]['status']
@@ -163,9 +163,9 @@ def submit_code(code):
     update_client()
     file_name = code
     code = "".join(open(code).readlines())
-    url = stepic_url + "/submissions"
+    url = STEPIC_URL + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-    file = file_manager.read_file(attempt_file)
+    file = file_manager.read_file(ATTEMPT_FILE)
     attempt_id = next(file)
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
@@ -203,12 +203,12 @@ def main():
         exit_util("Can't do anything. Not enough rights to edit folders.")
     lines = 0
     try:
-        for _ in file_manager.read_file(client_file):
+        for _ in file_manager.read_file(CLIENT_FILE):
             lines += 1
     except Exception as e:
         pass
     if lines < 2:
-        file_manager.write_to_file(client_file, "client_id:\nclient_secret:\n")
+        file_manager.write_to_file(CLIENT_FILE, "client_id:\nclient_secret:\n")
 
 
 @main.command()
