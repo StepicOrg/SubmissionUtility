@@ -25,6 +25,8 @@ class StepicClient:
         self.secret = data['client_secret']
         self.time_out_limit = 5
         self.headers = None
+        self.check_user()
+        self.update_client()
 
     def request(self, request_type, link, **kwargs):
         time_out = 0.1
@@ -50,6 +52,15 @@ class StepicClient:
 
     def get_request(self, link, **kwargs):
         return self.request("get", link, **kwargs)
+
+    def check_user(self):
+        auth = requests.auth.HTTPBasicAuth(self.client_id, self.secret)
+        try:
+            resp = requests.post('https://stepic.org/oauth2/token/',
+                                 data={'grant_type': 'client_credentials'}, auth=auth)
+            assert resp.status_code < 300
+        except Exception:
+            exit_util("Check yourClient id and Client secret.")
 
     def update_client(self):
         auth = requests.auth.HTTPBasicAuth(self.client_id, self.secret)
@@ -248,9 +259,6 @@ def main():
         pass
     if lines < 1:
         file_manager.write_json(CLIENT_FILE, {"client_id": "id", "client_secret": "secret"})
-    global stepic_client
-    stepic_client = StepicClient(FileManager())
-
 
 @main.command()
 def init():
@@ -266,6 +274,8 @@ def init():
         click.secho("Enter your Client secret:", bold=True)
         new_client_secret = input()
         set_client(new_client_id, new_client_secret)
+        global stepic_client
+        stepic_client = StepicClient(FileManager())
     except Exception:
         exit_util("Enter right Client id and Client secret")
     click.secho("Submitter was inited successfully!", fg="green")
@@ -277,6 +287,9 @@ def problem(p=None):
     """
     Setting new problem as current target.
     """
+    global stepic_client
+    stepic_client = StepicClient(FileManager())
+
     if p is not None:
         set_problem(p)
 
@@ -287,6 +300,9 @@ def submit(s=None):
     """
     Submit a solution to stepic system.
     """
+    global stepic_client
+    stepic_client = StepicClient(FileManager())
+
     if s is not None:
         submit_code(s)
 
