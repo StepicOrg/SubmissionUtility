@@ -117,7 +117,7 @@ class StepicClient:
         block = step['steps'][0]['block']
         if block['name'] != 'code':
             exit_util('Set correct link.')
-        languages = block['options']['limits']
+        languages = block['options']['code_templates']
         return [lang for lang in languages]
 
 
@@ -249,9 +249,15 @@ def submit_code(code, lang=None):
         pass
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
-    language = LanguageManager().programming_language.get(os.path.splitext(file_name)[1])
+    available_languages = stepic_client.get_languages_list()
+    if lang in available_languages:
+        language = lang
+    else:
+        language = LanguageManager().programming_language.get(os.path.splitext(file_name)[1])
     if language is None:
         exit_util("Doesn't correct extension for programme.")
+    if language not in available_languages:
+        exit_util("This language not available for current problem.")
     submission = {"submission":
                     {
                         "time": current_time,
