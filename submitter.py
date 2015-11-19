@@ -137,9 +137,9 @@ def exit_util(message):
     sys.exit(0)
 
 
-programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
-                        'java': 'java8', 'hs': 'haskel 7.10', 'sh': 'shell',
-                        'r': 'r'}
+programming_language = {'.cpp': 'c++11', '.c': 'c++11', '.py': 'python3',
+                        '.java': 'java8', '.hs': 'haskel 7.10', '.sh': 'shell',
+                        '.r': 'r'}
                         
                         
 def set_client(cid, secret):
@@ -273,29 +273,31 @@ def init():
 
 
 @main.command()
+@click.argument("link")
 @click.option("-p", help="Link to your problem")
-def problem(p=None):
+def problem(link=None, p=None):
     """
     Setting new problem as current target.
     """
     global stepic_client
     stepic_client = StepicClient(FileManager())
 
-    if p is not None:
-        set_problem(p)
+    if link is not None:
+        set_problem(link)
 
 
 @main.command()
+@click.argument("solution")
 @click.option("-s", help="Path to your solution")
-def submit(s=None):
+def submit(solution=None, s=None):
     """
     Submit a solution to stepic system.
     """
     global stepic_client
     stepic_client = StepicClient(FileManager())
 
-    if s is not None:
-        submit_code(s)
+    if solution is not None:
+        submit_code(solution)
 
 if __name__ == '__main__':
     main()
