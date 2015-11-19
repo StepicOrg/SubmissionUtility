@@ -19,7 +19,7 @@ def exit_util(message):
     """
     Main program method
     """
-    click.secho(message, fg="red")
+    click.secho(message, fg="red", bold=True)
     sys.exit(0)
 
 
@@ -234,7 +234,7 @@ def set_problem(problem_url):
         file_manager.write_json(ATTEMPT_FILE, data)
     except Exception as e:
         exit_util("You do not have permission to perform this action.")
-    click.secho("Connecting completed!", fg="green")
+    click.secho("Connecting completed!", fg="green", bold=True)
 
 
 def evaluate(attempt_id):
@@ -250,7 +250,7 @@ def evaluate(attempt_id):
         time.sleep(time_out)
         time_out += time_out
     click.echo("")
-    click.secho("You solution is {}\n{}".format(status, hint), fg=['red', 'green'][status == 'correct'])
+    click.secho("You solution is {}\n{}".format(status, hint), fg=['red', 'green'][status == 'correct'], bold=True)
 
 
 def submit_code(code, lang=None):
@@ -334,7 +334,7 @@ def init():
         stepic_client = StepicClient(FileManager())
     except Exception:
         exit_util("Enter right Client id and Client secret")
-    click.secho("Submitter was inited successfully!", fg="green")
+    click.secho("Submitter was inited successfully!", fg="green", bold=True)
 
 
 @main.command()
@@ -386,7 +386,9 @@ def next():
     global stepic_client
     stepic_client = StepicClient(FileManager())
     message = "Stayed for current problem."
+    color = "red"
     if stepic_client.next_problem("code"):
         message = "Switched to the next problem successful."
+        color = "green"
 
-    click.secho(message, bold=True, fg="green")
+    click.secho(message, bold=True, fg=color)
