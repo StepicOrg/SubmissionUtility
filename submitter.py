@@ -80,6 +80,10 @@ class StepicClient:
         resp = self.get_request(STEPIC_URL + "/submissions/{}".format(attempt_id), headers=self.headers)
         return resp.json()
 
+    def get_attempt(self, data):
+        resp = self.post_request(STEPIC_URL + "/attempts", data=data, headers=self.headers)
+        return resp.json()
+
     def get_attempt_id(self, lesson, step_id):
         self.update_client()
         steps = None
@@ -95,9 +99,7 @@ class StepicClient:
         step_id = steps[step_id - 1]
         data['current_step'] = step_id
         self.file_manager.write_json(ATTEMPT_FILE, data)
-        attempt = {"attempt": {"step": str(step_id)}}
-        attempt = self.post_request(STEPIC_URL + "/attempts", data=json.dumps(attempt), headers=self.headers)
-        attempt = attempt.json()
+        attempt = self.get_attempt(json.dumps({"attempt": {"step": str(step_id)}}))
         try:
             return attempt['attempts'][0]['id']
         except Exception:
@@ -109,16 +111,33 @@ class StepicClient:
         resp = self.post_request(url, data=data, headers=self.headers)
         return resp.json()
 
+    def get_step(self, step_id):
+        step = self.get_request(STEPIC_URL + "/steps/{}".format(step_id), headers=self.headers)
+        return step.json()
+
     def get_languages_list(self):
         self.update_client()
         data = self.file_manager.read_json(ATTEMPT_FILE)
-        step = self.get_request(STEPIC_URL + "/steps/{}".format(data['current_step']), headers=self.headers)
-        step = step.json()
+        step = self.get_step(data['current_step'])
         block = step['steps'][0]['block']
         if block['name'] != 'code':
             exit_util('Set correct link.')
         languages = block['options']['code_templates']
         return [lang for lang in languages]
+
+    def next_problem(self, problem_type):
+        data = self.file_manager.read_json(ATTEMPT_FILE)
+        steps = data['steps']
+        position = data['current_position']
+        for step_id in range(position + 1, len(steps) + 1):
+            step = self.get_step(steps[step_id - 1])
+            if step['steps'][0]['block']['name'] == problem_type:
+                data['current_position'] = step_id
+                attempt = self.get_attempt(json.dumps({"attempt": {"step": str(steps[step_id - 1])}}))
+                data['attempt_id'] = attempt['attempts'][0]['id']
+                self.file_manager.write_json(ATTEMPT_FILE, data)
+                return True
+        return False
 
 
 class FileManager:
@@ -356,3 +375,18 @@ def lang():
 
     for lang in stepic_client.get_languages_list():
         click.secho("{} ".format(lang), bold=True, nl=False)
+
+
+@main.command()
+def next():
+    """
+    Switches to the next code challenge in the lesson
+    """
+
+    global stepic_client
+    stepic_client = StepicClient(FileManager())
+    message = "Stayed for current problem."
+    if stepic_client.next_problem("code"):
+        message = "Switched to the next problem successful."
+
+    click.secho(message, bold=True, fg="green")
