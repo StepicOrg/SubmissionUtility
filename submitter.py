@@ -29,23 +29,14 @@ class StepicClient:
         self.update_client()
 
     def request(self, request_type, link, **kwargs):
-        time_out = 0.1
         resp = None
-        while True:
-            try:
-                resp = requests.__dict__[request_type](link, **kwargs)
-            except Exception as e:
-                exit_util(e.args[0])
-            if resp.status_code >= 500:
-                time.sleep(time_out)
-                time_out += time_out
-                continue
-            if resp.status_code >= 400:
-                exit_util("Something went wrong.")
-            if resp:
-                return resp
-            if time_out > self.time_out_limit:
-                exit_util("Time limit connection.")
+        try:
+            resp = requests.__dict__[request_type](link, **kwargs)
+        except Exception as e:
+            exit_util(e.args[0])
+        if resp.status_code >= 400:
+            exit_util("Something went wrong.")
+        return resp
 
     def post_request(self, link, **kwargs):
         return self.request("post", link, **kwargs)
@@ -220,7 +211,7 @@ def submit_code(code):
     attempt_id = next(file)
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
-    language = programming_language.get(file_name.split('.')[-1])
+    language = programming_language.get(os.path.splitext(file_name)[1])
     if language is None:
         exit_util("Doesn't correct extension for programme.")
     submission = {"submission":
