@@ -16,13 +16,17 @@ stepic_client = None
 
 
 def exit_util(message):
-    """Main program method"""
+    """
+    Main program method
+    """
     click.secho(message, fg="red")
     sys.exit(0)
 
 
 class StepicClient:
-    """Client to communicate with api"""
+    """
+    Client to communicate with api
+    """
 
     def __init__(self, file_manager):
         self.file_manager = file_manager
@@ -87,8 +91,9 @@ class StepicClient:
             exit_util("Too few steps in the lesson.")
         data = self.file_manager.read_json(ATTEMPT_FILE)
         data['steps'] = steps
-        data['current_step'] = step_id
+        data['current_position'] = step_id
         step_id = steps[step_id - 1]
+        data['current_step'] = step_id
         self.file_manager.write_json(ATTEMPT_FILE, data)
         attempt = {"attempt": {"step": str(step_id)}}
         attempt = self.post_request(STEPIC_URL + "/attempts", data=json.dumps(attempt), headers=self.headers)
@@ -104,9 +109,22 @@ class StepicClient:
         resp = self.post_request(url, data=data, headers=self.headers)
         return resp.json()
 
+    def get_languages_list(self):
+        self.update_client()
+        data = self.file_manager.read_json(ATTEMPT_FILE)
+        step = self.get_request(STEPIC_URL + "/steps/{}".format(data['current_step']), headers=self.headers)
+        step = step.json()
+        block = step['steps'][0]['block']
+        if block['name'] != 'code':
+            exit_util('Set correct link.')
+        languages = block['options']['limits']
+        return [lang for lang in languages]
+
 
 class FileManager:
-    """Local file manager"""
+    """
+    Local file manager
+    """
 
     def __init__(self):
         self.home = os.path.expanduser("~")
@@ -319,3 +337,16 @@ def submit(solution=None, l=None):
 
     if solution is not None:
         submit_code(solution, l)
+
+
+@main.command()
+def lang():
+    """
+    Displays all available languages for current problem
+    """
+
+    global stepic_client
+    stepic_client = StepicClient(FileManager())
+
+    for lang in stepic_client.get_languages_list():
+        click.secho("{} ".format(lang), bold=True, nl=False)
