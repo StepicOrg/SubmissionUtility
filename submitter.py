@@ -15,6 +15,12 @@ file_manager = None
 stepic_client = None
 
 
+def exit_util(message):
+    """Main program method"""
+    click.secho(message, fg="red")
+    sys.exit(0)
+
+
 class StepicClient:
     """Client to communicate with api"""
 
@@ -79,7 +85,11 @@ class StepicClient:
             exit_util("Didn't receive such lesson.")
         if len(steps) < step_id or step_id < 1:
             exit_util("Too few steps in the lesson.")
+        data = self.file_manager.read_json(ATTEMPT_FILE)
+        data['steps'] = steps
+        data['current_step'] = step_id
         step_id = steps[step_id - 1]
+        self.file_manager.write_json(ATTEMPT_FILE, data)
         attempt = {"attempt": {"step": str(step_id)}}
         attempt = self.post_request(STEPIC_URL + "/attempts", data=json.dumps(attempt), headers=self.headers)
         attempt = attempt.json()
@@ -131,16 +141,21 @@ class FileManager:
         filename = self.get_name(filename)
         return json.loads(open(filename).read())
 
+    @staticmethod
+    def is_local_file(filename):
+        return os.path.isfile(filename)
 
-def exit_util(message):
-    click.secho(message, fg="red")
-    sys.exit(0)
 
+class LanguageManager:
 
-programming_language = {'.cpp': 'c++11', '.c': 'c++11', '.py': 'python3',
-                        '.java': 'java8', '.hs': 'haskel 7.10', '.sh': 'shell',
-                        '.r': 'r'}
-                        
+    programming_language = {'.cpp': 'c++11', '.c': 'c++11', '.py': 'python3',
+                            '.java': 'java8', '.hs': 'haskel 7.10', '.sh': 'shell',
+                            '.r': 'r', '.js': 'javascript', '.rs': 'rust', '.m': 'octave',
+                            '.asm': 'asm32', '.clj': 'clojure', '.cs': 'mono c#'}
+
+    def __init__(self):
+        pass
+
                         
 def set_client(cid, secret):
     data = file_manager.read_json(CLIENT_FILE)
@@ -177,7 +192,9 @@ def set_problem(problem_url):
     lesson = stepic_client.get_lesson(lesson_id)
     attempt_id = stepic_client.get_attempt_id(lesson, step_id)
     try:
-        file_manager.write_to_file(ATTEMPT_FILE, str(attempt_id))
+        data = file_manager.read_json(ATTEMPT_FILE)
+        data['attempt_id'] = attempt_id
+        file_manager.write_json(ATTEMPT_FILE, data)
     except Exception as e:
         exit_util("You do not have permission to perform this action.")
     click.secho("Connecting completed!", fg="green")
@@ -199,19 +216,22 @@ def evaluate(attempt_id):
     click.secho("You solution is {}\n{}".format(status, hint), fg=['red', 'green'][status == 'correct'])
 
 
-def submit_code(code):
-    file_name = code
-    try:
-        code = "".join(open(code).readlines())
-    except Exception:
+def submit_code(code, lang=None):
+    if not file_manager.is_local_file(code):
         exit_util("FIle {} not found".format(code))
+    file_name = code
+    code = "".join(open(code).readlines())
     url = STEPIC_URL + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-    file = file_manager.read_file(ATTEMPT_FILE)
-    attempt_id = next(file)
+    file = file_manager.read_json(ATTEMPT_FILE)
+    attempt_id = None
+    try:
+        attempt_id = file['attempt_id']
+    except Exception:
+        pass
     if attempt_id is None:
         exit_util("Plz, set the problem link!")
-    language = programming_language.get(os.path.splitext(file_name)[1])
+    language = LanguageManager().programming_language.get(os.path.splitext(file_name)[1])
     if language is None:
         exit_util("Doesn't correct extension for programme.")
     submission = {"submission":
@@ -250,6 +270,7 @@ def main():
         pass
     if lines < 1:
         file_manager.write_json(CLIENT_FILE, {"client_id": "id", "client_secret": "secret"})
+        file_manager.write_json(ATTEMPT_FILE, {})
 
 
 @main.command()
@@ -288,7 +309,8 @@ def problem(link=None):
 
 @main.command()
 @click.argument("solution")
-def submit(solution=None):
+@click.option("-l", help="language")
+def submit(solution=None, l=None):
     """
     Submit a solution to stepic system.
     """
@@ -296,4 +318,4 @@ def submit(solution=None):
     stepic_client = StepicClient(FileManager())
 
     if solution is not None:
-        submit_code(solution)
+        submit_code(solution, l)
