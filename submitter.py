@@ -203,7 +203,7 @@ def submit_code(code):
     file_name = code
     try:
         code = "".join(open(code).readlines())
-    except FileNotFoundError:
+    except Exception:
         exit_util("FIle {} not found".format(code))
     url = STEPIC_URL + "/submissions"
     current_time = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
@@ -251,6 +251,7 @@ def main():
     if lines < 1:
         file_manager.write_json(CLIENT_FILE, {"client_id": "id", "client_secret": "secret"})
 
+
 @main.command()
 def init():
     """
@@ -274,8 +275,7 @@ def init():
 
 @main.command()
 @click.argument("link")
-@click.option("-p", help="Link to your problem")
-def problem(link=None, p=None):
+def problem(link=None):
     """
     Setting new problem as current target.
     """
@@ -288,8 +288,7 @@ def problem(link=None, p=None):
 
 @main.command()
 @click.argument("solution")
-@click.option("-s", help="Path to your solution")
-def submit(solution=None, s=None):
+def submit(solution=None):
     """
     Submit a solution to stepic system.
     """
@@ -298,6 +297,3 @@ def submit(solution=None, s=None):
 
     if solution is not None:
         submit_code(solution)
-
-if __name__ == '__main__':
-    main()
