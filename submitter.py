@@ -11,28 +11,86 @@ STEPIC_URL = "https://stepic.org/api"
 APP_FOLDER = ".stepic"
 CLIENT_FILE = APP_FOLDER + "/client_file"
 ATTEMPT_FILE = APP_FOLDER + "/attempt_file"
-token = None
-headers = None
 file_manager = None
-client = None
+stepic_client = None
 
 
-class Client:
-    def __init__(self):
-        self.id = "client_id"
-        self.secret = "secret"
+class StepicClient:
+    """Client to communicate with api"""
 
-    def set_id(self, client_id):
-        self.id = client_id
+    def __init__(self, file_manager):
+        self.file_manager = file_manager
+        data = self.file_manager.read_json(CLIENT_FILE)
+        self.client_id = data['client_id']
+        self.secret = data['client_secret']
+        self.time_out_limit = 5
+        self.headers = None
 
-    def set_secret(self, client_secret):
-        self.secret = client_secret
+    def request(self, request_type, link, **kwargs):
+        time_out = 0.1
+        resp = None
+        while True:
+            try:
+                resp = requests.__dict__[request_type](link, **kwargs)
+            except Exception as e:
+                exit_util(e.args[0])
+            if resp.status_code >= 500:
+                time.sleep(time_out)
+                time_out += time_out
+                continue
+            if resp.status_code >= 400:
+                exit_util("Something went wrong.")
+            if resp:
+                return resp
+            if time_out > self.time_out_limit:
+                exit_util("Time limit connection.")
 
-    def get_id(self):
-        return self.id
+    def post_request(self, link, **kwargs):
+        return self.request("post", link, **kwargs)
 
-    def get_secret(self):
-        return self.secret
+    def get_request(self, link, **kwargs):
+        return self.request("get", link, **kwargs)
+
+    def update_client(self):
+        auth = requests.auth.HTTPBasicAuth(self.client_id, self.secret)
+        resp = self.post_request('https://stepic.org/oauth2/token/',
+                             data={'grant_type': 'client_credentials'}, auth=auth)
+        token = (resp.json())['access_token']
+        self.headers = {'Authorization': 'Bearer ' + token, "content-type": "application/json"}
+
+    def get_lesson(self, lesson_id):
+        self.update_client()
+        lesson = self.get_request(STEPIC_URL + "/lessons/{}".format(lesson_id), headers=self.headers)
+        return lesson.json()
+
+    def get_submission(self, attempt_id):
+        self.update_client()
+        resp = self.get_request(STEPIC_URL + "/submissions/{}".format(attempt_id), headers=self.headers)
+        return resp.json()
+
+    def get_attempt_id(self, lesson, step_id):
+        self.update_client()
+        steps = None
+        try:
+            steps = lesson['lessons'][0]['steps']
+        except Exception:
+            exit_util("Didn't receive such lesson.")
+        if len(steps) < step_id or step_id < 1:
+            exit_util("Too few steps in the lesson.")
+        step_id = steps[step_id - 1]
+        attempt = {"attempt": {"step": str(step_id)}}
+        attempt = self.post_request(STEPIC_URL + "/attempts", data=json.dumps(attempt), headers=self.headers)
+        attempt = attempt.json()
+        try:
+            return attempt['attempts'][0]['id']
+        except Exception:
+            exit_util("Wrong attempt")
+        return None
+
+    def get_submit(self, url, data):
+        self.update_client()
+        resp = self.post_request(url, data=data, headers=self.headers)
+        return resp.json()
 
 
 class FileManager:
@@ -77,21 +135,6 @@ def exit_util(message):
     sys.exit(0)
 
 
-def update_client():
-    global token
-    global headers
-    global client
-    data = file_manager.read_json(CLIENT_FILE)
-    client.set_id(data['client_id'])
-    client.set_secret(data['client_secret'])
-    auth = requests.auth.HTTPBasicAuth(client.get_id(), client.get_secret())
-    resp = requests.post('https://stepic.org/oauth2/token/', data={'grant_type': 'client_credentials'}, auth=auth)
-    if resp.status_code > 400:
-        exit_util("Wrong Client id or Client secret.\n Or check your internet connection.")
-    token = (resp.json())['access_token']
-    headers = {'Authorization': 'Bearer ' + token, "content-type": "application/json"}
-
-
 programming_language = {'cpp': 'c++11', 'c': 'c++11', 'py': 'python3',
                         'java': 'java8', 'hs': 'haskel 7.10', 'sh': 'shell',
                         'r': 'r'}
@@ -121,41 +164,20 @@ def get_step_id(problem_url):
 
 
 def set_problem(problem_url):
-    update_client()
-    request_inf = None
-    try:
-        request_inf = requests.get(problem_url)
-    except Exception as e:
-        exit_util("The link is incorrect.")
-    code = request_inf.status_code
-    if code >= 500:
-        exit_util("Can't connect to {}".format(problem_url))
-    if code >= 400:
-        exit_util("Oops some problems with your link {}".format(problem_url))
+    request_inf = stepic_client.get_request(problem_url)
     click.secho("\nSetting connection to the page..", bold=True)
-
     lesson_id = get_lesson_id(problem_url)
     step_id = get_step_id(problem_url)
 
     if lesson_id is None or not step_id:
         exit_util("The link is incorrect.")
 
-    url = STEPIC_URL + "/lessons/{}".format(lesson_id)
-    lesson_information = requests.get(url, headers=headers)
-    lesson_information = lesson_information.json()
+    lesson = stepic_client.get_lesson(lesson_id)
+    attempt_id = stepic_client.get_attempt_id(lesson, step_id)
     try:
-        step_id = lesson_information['lessons'][0]['steps'][step_id - 1]
-        attempt = {"attempt": {
-                               "step": str(step_id)
-                            }
-                   }
-        url = STEPIC_URL + "/attempts"
-        attempt = requests.post(url, json.dumps(attempt), headers=headers)
-        attempt = attempt.json()
-        attempt_id = attempt['attempts'][0]['id']
         file_manager.write_to_file(ATTEMPT_FILE, str(attempt_id))
     except Exception as e:
-        exit_util("You do not have permission to perform this action, or something went wrong.")
+        exit_util("You do not have permission to perform this action.")
     click.secho("Connecting completed!", fg="green")
 
 
@@ -163,21 +185,19 @@ def evaluate(attempt_id):
     click.secho("Evaluating", bold=True, fg='white')
     time_out = 0.1
     while True:
-        url = STEPIC_URL + "/submissions/{}".format(attempt_id)
-        result = requests.get(url, headers=headers)
-        result = result.json()
+        result = stepic_client.get_submission(attempt_id)
         status = result['submissions'][0]['status']
+        hint = result['submissions'][0]['hint']
         if status != 'evaluation':
             break
         click.echo("..", nl=False)
         time.sleep(time_out)
         time_out += time_out
     click.echo("")
-    click.secho("You solution is {}".format(status), fg=['red', 'green'][status == 'correct'])
+    click.secho("You solution is {}\n{}".format(status, hint), fg=['red', 'green'][status == 'correct'])
 
 
 def submit_code(code):
-    update_client()
     file_name = code
     try:
         code = "".join(open(code).readlines())
@@ -203,8 +223,7 @@ def submit_code(code):
                         "attempt": attempt_id
                     }
     }
-    submit = requests.post(url, json.dumps(submission), headers=headers)
-    submit = submit.json()
+    submit = stepic_client.get_submit(url, json.dumps(submission))
     evaluate(submit['submissions'][0]['id'])
 
 
@@ -216,9 +235,7 @@ def main():
     Tools for submitting solutions to stepic.org
     """
     global file_manager
-    global client
     file_manager = FileManager()
-    client = Client()
     try:
         file_manager.create_dir(APP_FOLDER)
     except OSError:
@@ -231,6 +248,8 @@ def main():
         pass
     if lines < 1:
         file_manager.write_json(CLIENT_FILE, {"client_id": "id", "client_secret": "secret"})
+    global stepic_client
+    stepic_client = StepicClient(FileManager())
 
 
 @main.command()
@@ -247,7 +266,6 @@ def init():
         click.secho("Enter your Client secret:", bold=True)
         new_client_secret = input()
         set_client(new_client_id, new_client_secret)
-        update_client()
     except Exception:
         exit_util("Enter right Client id and Client secret")
     click.secho("Submitter was inited successfully!", fg="green")
